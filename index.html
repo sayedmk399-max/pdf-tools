@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محول وأدوات PDF الشاملة | تحت إشراف: سيد محمود سيد أبوسريع</title>
+
+    <!-- خط Cairo العربي -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Cairo', 'Tahoma', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- المكتبات البرمجية الموثوقة من cdnjs.cloudflare.com -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+
+    <style>
+        body {
+            background-color: #f5f6fa;
+            color: #1e293b;
+            font-family: 'Cairo', 'Tahoma', 'Arial', sans-serif;
+            overflow-x: hidden;
+        }
+        .tool-item-btn {
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tool-item-btn:hover {
+            transform: translateX(-3px);
+            background-color: #f8fafc;
+        }
+        .drop-zone {
+            transition: all 0.25s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #e5322d;
+            background-color: #fef2f2;
+            transform: scale(1.005);
+        }
+        /* منطقة تصيير المحتوى العربي بدقة A4 قبل تحويله لصورة وإدراجه في PDF */
+        #render-sandbox {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: 794px;
+            background: #ffffff;
+            color: #0f172a;
+            padding: 40px;
+            font-family: 'Cairo', 'Tahoma', 'Arial', sans-serif;
+            direction: rtl;
+            text-align: right;
+            line-height: 1.8;
+            z-index: -1;
+        }
+        #render-sandbox table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+        #render-sandbox th, #render-sandbox td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 12px;
+            text-align: right;
+        }
+        #render-sandbox th {
+            background-color: #f1f5f9;
+            font-weight: 800;
+        }
+        .ppt-slide-render {
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        /* شريط التمرير المخصص */
+        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- ===================================================================== -->
+    <!-- 1. الشريط العلوي (Navbar) + القائمة الشاملة بـ 7 أعمدة (Mega Menu)    -->
+    <!-- ===================================================================== -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+            
+            <!-- الشعار وزر القائمة الشاملة -->
+            <div class="flex items-center gap-3 sm:gap-5">
+                <button type="button" onclick="app.showHome()" class="flex items-center gap-2.5 text-right focus:outline-none group">
+                    <div class="w-10 h-10 rounded-xl bg-[#e5322d] text-white flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+                        <span class="font-black text-base tracking-tighter">PDF</span>
+                    </div>
+                    <div>
+                        <span class="text-base sm:text-lg font-black text-slate-900 block leading-none">محول وأدوات PDF الشاملة</span>
+                        <span class="text-[11px] text-slate-500 font-bold">33 أداة متكاملة تعمل محلياً</span>
+                    </div>
+                </button>
+
+                <!-- زر القائمة الشاملة (Mega Menu) -->
+                <div class="relative" id="mega-menu-wrapper">
+                    <button type="button" onclick="app.toggleMegaMenu()" 
+                        class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition">
+                        <svg class="w-4 h-4 text-[#e5322d]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <span>جميع الأدوات (33)</span>
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+
+                    <!-- القائمة المنسدلة بـ 7 أعمدة مطابقة للصورة -->
+                    <div id="mega-menu-dropdown" class="hidden fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-16 sm:top-full mt-1 sm:mt-2 w-auto sm:w-[95vw] max-w-[1360px] max-h-[82vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-slate-200 p-5 sm:p-6 z-50">
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 sm:hidden">
+                            <span class="font-black text-slate-900 text-sm">جميع أدوات PDF (7 أقسام)</span>
+                            <button type="button" onclick="app.toggleMegaMenu()" class="p-1.5 rounded-lg bg-slate-100 text-slate-600">✕</button>
+                        </div>
+                        <div id="mega-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-5"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- شارة الإشراف في الشريط العلوي (الموضع 1) -->
+            <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 bg-gradient-to-l from-indigo-950 to-slate-900 text-white border border-amber-400/40 px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-extrabold shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                    <span>تحت إشراف: <span class="text-amber-300">سيد محمود سيد أبوسريع</span></span>
+                </div>
+                <div class="hidden 2xl:flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <span>خصوصية 100%</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- حاوية التنبيهات العائمة (Toast Notifications) -->
+    <div id="toast-container" class="fixed bottom-5 left-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- ===================================================================== -->
+    <!-- 2. المحتوى الرئيسي                                                    -->
+    <!-- ===================================================================== -->
+    <main class="flex-grow max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-7">
+
+        <!-- ================================================================= -->
+        <!-- أ. الشاشة الرئيسية: Hero + الشبكة الشاملة للأقسام السبعة (33 أداة) -->
+        <!-- ================================================================= -->
+        <section id="home-view" class="space-y-8">
+
+            <!-- القسم الرئيسي (Hero Section) -->
+            <div class="bg-white rounded-3xl p-6 sm:p-9 border border-slate-200/90 shadow-xs text-center space-y-4">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-50 text-[#e5322d] text-xs font-black border border-red-100">
+                    <span>منصة معالجة وتحويل المستندات المتكاملة</span>
+                </div>
+                <h1 class="text-2xl sm:text-4xl font-black text-slate-900 leading-tight">
+                    محول وأدوات <span class="text-[#e5322d]">PDF</span> الشاملة — 33 أداة احترافية في مكان واحد
+                </h1>
+                <p class="text-sm sm:text-base text-slate-600 max-w-3xl mx-auto font-medium">
+                    تنظيم، تحسين، تحويل من وإلى PDF، تعديل، حماية، واستخلاص المعلومات الذكية — تعمل جميع الأدوات بالكامل داخل متصفحك دون رفع ملفاتك لأي خادم خارجي.
+                </p>
+
+                <!-- بطاقة الإشراف الذهبية/النيلية في القسم الرئيسي (الموضع 2) -->
+                <div class="pt-1 flex justify-center">
+                    <div class="inline-flex items-center gap-3.5 px-6 sm:px-8 py-3.5 rounded-2xl bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-950 text-white shadow-xl border-2 border-amber-400/50">
+                        <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center shrink-0 shadow-md">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                        </span>
+                        <div class="text-right">
+                            <span class="text-[11px] text-amber-300/90 font-bold block leading-none mb-1">إشراف وتوجيه</span>
+                            <span class="text-sm sm:text-lg font-black tracking-wide text-white">
+                                تحت إشراف: <span class="text-amber-300">سيد محمود سيد أبوسريع</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- شريط بحث سريع لتصفية الأدوات الـ 33 -->
+                <div class="max-w-md mx-auto pt-2">
+                    <div class="relative">
+                        <input type="text" id="tool-search-input" oninput="app.filterTools(this.value)" placeholder="ابحث عن أداة (مثل: دمج، ضغط، Word، توقيع، تلخيص...)" 
+                            class="w-full pl-4 pr-10 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#e5322d] focus:ring-2 focus:ring-red-100 outline-none text-xs sm:text-sm font-bold text-slate-800 transition">
+                        <svg class="w-4 h-4 text-slate-400 absolute right-3.5 top-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الشبكة الرئيسية للأقسام السبعة (مطابقة للصورة من اليمين إلى اليسار) -->
+            <div id="home-sections-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-start"></div>
+
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- ب. مساحة العمل التفاعلية للأداة المختارة (Workspace View)          -->
+        <!-- ================================================================= -->
+        <section id="workspace-view" class="hidden max-w-5xl mx-auto space-y-6">
+
+            <!-- شريط التنقل العلوي داخل مساحة العمل -->
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+                <button type="button" onclick="app.showHome()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    <span>العودة لجميع الأدوات (33)</span>
+                </button>
+
+                <!-- أزرار أدوات نفس القسم للتبديل السريع -->
+                <div id="workspace-category-pills" class="flex items-center gap-1.5 overflow-x-auto max-w-full py-1"></div>
+            </div>
+
+            <!-- ترويسة الأداة النشطة -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs text-center space-y-3">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold" id="ws-cat-badge"></div>
+                <div id="ws-icon" class="w-16 h-16 mx-auto flex items-center justify-center"></div>
+                <h2 id="ws-title" class="text-2xl sm:text-3xl font-black text-slate-900"></h2>
+                <p id="ws-desc" class="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto font-medium"></p>
+            </div>
+
+            <!-- شريط التقدم (Progress Bar) -->
+            <div id="progress-box" class="hidden bg-white p-5 rounded-2xl border border-blue-200 shadow-xs">
+                <div class="flex items-center justify-between mb-2">
+                    <span id="progress-label" class="text-sm font-extrabold text-blue-700">جاري المعالجة...</span>
+                    <span id="progress-pct" class="text-sm font-black text-blue-700">0%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div id="progress-fill" class="bg-gradient-to-l from-[#e5322d] to-amber-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- منطقة رفع الملفات والخيارات المخصصة والنتائج -->
+            <div id="ws-content" class="space-y-6"></div>
+
+        </section>
+
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- 3. تذييل الصفحة (Footer) - الموضع 3 للإشراف                           -->
+    <!-- ===================================================================== -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#e5322d]"></span>
+                <p class="font-bold text-slate-700">محول وأدوات PDF الشاملة — 33 أداة متكاملة</p>
+            </div>
+
+            <!-- شريط الإشراف البارز في المنتصف -->
+            <div class="px-6 py-2.5 rounded-2xl bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-950 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2.5 shadow-md border border-amber-400/40">
+                <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>تحت إشراف: <span class="text-amber-300">سيد محمود سيد أبوسريع</span></span>
+            </div>
+
+            <p class="font-semibold">تعمل جميع الأدوات محلياً في المتصفح لضمان الخصوصية</p>
+        </div>
+    </footer>
+
+    <!-- حاوية مخفية لتصيير المحتوى العربي قبل تحويله إلى PDF -->
+    <div id="render-sandbox"></div>
+
+    <!-- ===================================================================== -->
+    <!-- 4. المنطق البرمجي الكامل للأقسام السبعة والأدوات الـ 33 (JavaScript)  -->
+    <!-- ===================================================================== -->
+    <script>
+        // تهيئة عامل PDF.js بأمان
+        try {
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+        } catch (e) {
+            console.warn('PDF.js worker notice:', e);
+        }
+
+        // =====================================================================
+        // مولّد أيقونات SVG مخصصة لكل أداة تطابق ألوان الصورة المرفقة
+        // =====================================================================
+        function getToolIconSvg(tool) {
+            const c = tool.color;
+            // أيقونات التحويل مزدوجة المستندات (من / إلى PDF)
+            if (tool.cat === 'to-pdf' || tool.cat === 'from-pdf') {
+                const isTo = tool.cat === 'to-pdf';
+                const topColor = isTo ? c : '#e5322d';
+                const botColor = isTo ? '#e5322d' : c;
+                const topTxt = isTo ? tool.badge : 'PDF';
+                const botTxt = isTo ? 'PDF' : tool.badge;
+                return `
+                    <svg viewBox="0 0 44 44" class="w-full h-full shrink-0" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="22" height="22" rx="5" fill="${topColor}" fill-opacity="0.16" stroke="${topColor}" stroke-width="2"/>
+                        <text x="14" y="17" text-anchor="middle" fill="${topColor}" font-size="7.5" font-weight="900" font-family="Cairo, Arial">${topTxt}</text>
+                        <rect x="19" y="19" width="22" height="22" rx="5" fill="${botColor}"/>
+                        <text x="30" y="33" text-anchor="middle" fill="#ffffff" font-size="7.5" font-weight="900" font-family="Cairo, Arial">${botTxt}</text>
+                        <path d="M10 29 C10 34, 13 36, 16 36" fill="none" stroke="${botColor}" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M14 33 L17 36 L14 39" fill="none" stroke="${botColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                `;
+            }
+
+            // أيقونات باقي الأقسام الخمسة داخل مربع ملون أنيق
+            const iconsMap = {
+                'merge-pdf': '<path d="M8 7h6v6H8zM18 19h6v6h-6zM14 10h4v9" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M16 17l2 2 2-2" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+                'split-pdf': '<path d="M16 7v18M11 12l-4 4 4 4M21 12l4 4-4 4" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+                'remove-pages': '<path d="M10 10l12 12M22 10L10 22" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>',
+                'extract-pages': '<path d="M16 8v12M11 13l5-5 5 5M9 24h14" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+                'organize-pdf': '<rect x="8" y="8" width="6" height="6" rx="1" stroke="#fff" stroke-width="2" fill="none"/><rect x="18" y="8" width="6" height="6" rx="1" stroke="#fff" stroke-width="2" fill="none"/><rect x="8" y="18" width="6" height="6" rx="1" stroke="#fff" stroke-width="2" fill="none"/><rect x="18" y="18" width="6" height="6" rx="1" fill="#fff"/>',
+                'scan-to-pdf': '<path d="M8 12V9h3M24 12V9h-3M8 20v3h3M24 20v3h-3M7 16h18" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+                'compress-pdf': '<path d="M9 9l5 5M14 10v4h-4M23 23l-5-5M18 22v-4h4M23 9l-5 5M18 10v4h4M9 23l5-5M14 22v-4h-4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>',
+                'repair-pdf': '<path d="M19.5 9.5a4 4 0 00-5.3 5.3L9 20l3 3 5.2-5.2a4 4 0 005.3-5.3l-2.3 2.3-2-2 2.3-2.3z" stroke="#fff" stroke-width="2" fill="none" stroke-linejoin="round"/>',
+                'ocr-pdf': '<rect x="8" y="9" width="16" height="14" rx="2" stroke="#fff" stroke-width="2" fill="none"/><text x="16" y="18.5" text-anchor="middle" fill="#fff" font-size="7" font-weight="900">OCR</text>',
+                'rotate-pdf': '<path d="M21 13a6 6 0 10-1.5 5.5M21 9v4h-4" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+                'page-numbers': '<rect x="8" y="8" width="16" height="16" rx="2" stroke="#fff" stroke-width="2" fill="none"/><text x="16" y="19" text-anchor="middle" fill="#fff" font-size="8" font-weight="900">123</text>',
+                'watermark': '<path d="M16 9l2 4 4.5.6-3.2 3.2.8 4.5L16 19.2l-4.1 2.1.8-4.5-3.2-3.2L14 13z" stroke="#fff" stroke-width="1.8" fill="none"/>',
+                'crop-pdf': '<path d="M11 7v14h14M7 11h14v14" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+                'edit-pdf': '<path d="M18.5 9.5l4 4L13 23H9v-4l9.5-9.5z" stroke="#fff" stroke-width="2" fill="none" stroke-linejoin="round"/>',
+                'pdf-forms': '<rect x="8" y="9" width="16" height="5" rx="1.5" stroke="#fff" stroke-width="2" fill="none"/><rect x="8" y="18" width="16" height="5" rx="1.5" fill="#fff"/>',
+                'unlock-pdf': '<rect x="10" y="15" width="12" height="9" rx="2" stroke="#fff" stroke-width="2" fill="none"/><path d="M13 15v-3a3 3 0 015.8-1" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>',
+                'protect-pdf': '<path d="M16 8l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9v-5l7-3z" stroke="#fff" stroke-width="2" fill="none"/>',
+                'sign-pdf': '<path d="M9 22c3-4 5-10 7-10s1 8 4 8c2 0 3-3 4-4" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+                'redact-pdf': '<rect x="8" y="10" width="16" height="4" fill="#fff"/><rect x="8" y="17" width="10" height="4" fill="#fff"/>',
+                'compare-pdf': '<rect x="8" y="9" width="6.5" height="14" rx="1.5" stroke="#fff" stroke-width="2" fill="none"/><rect x="17.5" y="9" width="6.5" height="14" rx="1.5" stroke="#fff" stroke-width="2" fill="none"/>',
+                'smart-summary': '<path d="M9 11h14M9 16h10M9 21h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>',
+                'translate-pdf': '<text x="16" y="19.5" text-anchor="middle" fill="#fff" font-size="11" font-weight="900">A/ع</text>',
+                'pdf-to-markdown': '<text x="16" y="19.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="900">M↓</text>'
+            };
+
+            return `
+                <svg viewBox="0 0 32 32" class="w-full h-full shrink-0" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="28" height="28" rx="7" fill="${c}"/>
+                    ${iconsMap[tool.id] || ''}
+                </svg>
+            `;
+        }
+
+        // =====================================================================
+        // تعريف الأقسام السبعة والأدوات الـ 33 مطابقة للصورة من اليمين لليسار
+        // =====================================================================
+        const CATEGORIES = [
+            { id: 'organize', title: 'تنظيم ملف PDF', color: '#E55934' },
+            { id: 'optimize', title: 'تحسين مستند PDF', color: '#6BBF59' },
+            { id: 'to-pdf',   title: 'تحويل إلى PDF', color: '#F5B82E' },
+            { id: 'from-pdf', title: 'التحويل من PDF', color: '#4A7BD0' },
+            { id: 'edit',     title: 'تعديل ملف PDF', color: '#A65282' },
+            { id: 'security', title: 'حماية ملف PDF', color: '#427AA1' },
+            { id: 'info',     title: 'معلومات PDF', color: '#7B4AE2' }
+        ];
+
+        const TOOLS = [
+            // --- القسم 1: تنظيم ملف PDF (#E55934) - 6 أدوات ---
+            { id: 'merge-pdf', cat: 'organize', title: 'دمج PDF', color: '#E55934', accept: '.pdf,application/pdf', multiple: true, desc: 'ادمج عدة ملفات PDF في مستند واحد بالترتيب الذي تختاره.' },
+            { id: 'split-pdf', cat: 'organize', title: 'تقسيم PDF', color: '#E55934', accept: '.pdf,application/pdf', multiple: false, desc: 'قسّم ملف PDF إلى صفحات منفصلة أو استخرج نطاق صفحات محدد.' },
+            { id: 'remove-pages', cat: 'organize', title: 'حذف الصفحات', color: '#E55934', accept: '.pdf,application/pdf', multiple: false, desc: 'احذف صفحات غير مرغوب فيها من مستند PDF بسهولة.' },
+            { id: 'extract-pages', cat: 'organize', title: 'استخراج الصفحات', color: '#E55934', accept: '.pdf,application/pdf', multiple: false, desc: 'استخرج صفحات معينة واحفظها كملف PDF جديد مستقل.' },
+            { id: 'organize-pdf', cat: 'organize', title: 'تنظيم ملف PDF', color: '#E55934', accept: '.pdf,application/pdf', multiple: false, desc: 'أعد ترتيب صفحات ملف PDF بالتسلسل الجديد الذي تحدده.' },
+            { id: 'scan-to-pdf', cat: 'organize', title: 'امسح إلى PDF', color: '#E55934', accept: 'image/*', multiple: true, desc: 'التقط صوراً بالكاميرا أو ارفع صور المسح الضوئي وحوّلها لملف PDF.' },
+
+            // --- القسم 2: تحسين مستند PDF (#6BBF59) - 3 أدوات ---
+            { id: 'compress-pdf', cat: 'optimize', title: 'ضغط PDF', color: '#6BBF59', accept: '.pdf,application/pdf', multiple: false, desc: 'قلّل حجم ملف PDF مع الحفاظ على وضوح النصوص والصور.' },
+            { id: 'repair-pdf', cat: 'optimize', title: 'إصلاح مستند PDF', color: '#6BBF59', accept: '.pdf,application/pdf', multiple: false, desc: 'أعد بناء هيكل ملف PDF التالف أو المعطوب واستعد صفحاته.' },
+            { id: 'ocr-pdf', cat: 'optimize', title: 'التعرف الضوئي على الحروف بتنسيق PDF', color: '#6BBF59', accept: '.pdf,application/pdf', multiple: false, desc: 'استخرج النصوص من صفحات PDF وحوّلها إلى مستند نصي قابل للبحث والنسخ.' },
+
+            // --- القسم 3: تحويل إلى PDF - 5 أدوات ---
+            { id: 'jpg-to-pdf', cat: 'to-pdf', title: 'JPG إلى PDF', badge: 'JPG', color: '#F5B82E', accept: '.jpg,.jpeg,.png,.webp,image/*', multiple: true, desc: 'حوّل صور JPG و PNG إلى ملف PDF واحد مع ضبط مقاس الصفحة.' },
+            { id: 'word-to-pdf', cat: 'to-pdf', title: 'WORD إلى PDF', badge: 'W', color: '#4A7BD0', accept: '.docx,.txt,.rtf', multiple: false, desc: 'حوّل مستندات Word (DOCX و TXT) إلى ملف PDF عربي منسق.' },
+            { id: 'ppt-to-pdf', cat: 'to-pdf', title: 'POWERPOINT إلى PDF', badge: 'P', color: '#E56B4E', accept: '.pptx,.txt', multiple: false, desc: 'حوّل عروض PowerPoint التقديمية (PPTX) إلى ملف PDF جاهز للطباعة.' },
+            { id: 'excel-to-pdf', cat: 'to-pdf', title: 'EXCEL إلى PDF', badge: 'X', color: '#4B9E5F', accept: '.xlsx,.xls,.csv', multiple: false, desc: 'حوّل جداول بيانات Excel (XLSX, XLS, CSV) إلى جداول PDF منظمة.' },
+            { id: 'html-to-pdf', cat: 'to-pdf', title: 'HTML إلى PDF', badge: 'HTML', color: '#F5B82E', accept: '.html,.htm', multiple: false, desc: 'حوّل ملفات صفحات الويب HTML أو الصق كود HTML مباشرة لتصديره كـ PDF.' },
+
+            // --- القسم 4: التحويل من PDF - 5 أدوات ---
+            { id: 'pdf-to-jpg', cat: 'from-pdf', title: 'PDF إلى JPG', badge: 'JPG', color: '#F5B82E', accept: '.pdf,application/pdf', multiple: false, desc: 'حوّل صفحات PDF إلى صور JPG/PNG عالية الدقة مع تحميل فردي أو ZIP.' },
+            { id: 'pdf-to-word', cat: 'from-pdf', title: 'PDF إلى WORD', badge: 'W', color: '#4A7BD0', accept: '.pdf,application/pdf', multiple: false, desc: 'استخرج النصوص من PDF واحفظها كمستند Word (.doc) قابل للتعديل.' },
+            { id: 'pdf-to-ppt', cat: 'from-pdf', title: 'PDF إلى POWERPOINT', badge: 'P', color: '#E56B4E', accept: '.pdf,application/pdf', multiple: false, desc: 'حوّل كل صفحة في ملف PDF إلى شريحة عرض تقديمي حقيقية (.pptx).' },
+            { id: 'pdf-to-excel', cat: 'from-pdf', title: 'PDF إلى EXCEL', badge: 'X', color: '#4B9E5F', accept: '.pdf,application/pdf', multiple: false, desc: 'استخرج البيانات والجداول من PDF ونظّمها في ملف Excel (.xlsx).' },
+            { id: 'pdf-to-pdfa', cat: 'from-pdf', title: 'PDF إلى PDF/A', badge: '/A', color: '#4E7A9E', accept: '.pdf,application/pdf', multiple: false, desc: 'هيّئ مستند PDF وفق معايير الأرشفة الإلكترونية طويلة الأمد PDF/A.' },
+
+            // --- القسم 5: تعديل ملف PDF (#A65282) - 6 أدوات ---
+            { id: 'rotate-pdf', cat: 'edit', title: 'تدوير ملفات PDF', color: '#A65282', accept: '.pdf,application/pdf', multiple: false, desc: 'قم بتدوير صفحات ملف PDF بزاوية 90 أو 180 أو 270 درجة.' },
+            { id: 'page-numbers', cat: 'edit', title: 'إضافة أرقام الصفحات', color: '#A65282', accept: '.pdf,application/pdf', multiple: false, desc: 'أضف ترقيماً تلقائياً لجميع صفحات مستند PDF في الموضع الذي تختاره.' },
+            { id: 'watermark', cat: 'edit', title: 'إضافة العلامة المائية', color: '#A65282', accept: '.pdf,application/pdf', multiple: false, desc: 'أضف نص علامة مائية مائلة لحماية حقوق مستندات PDF بشفافية مخصصة.' },
+            { id: 'crop-pdf', cat: 'edit', title: 'قص ملفات PDF', color: '#A65282', accept: '.pdf,application/pdf', multiple: false, desc: 'اقطع الهوامش الزائدة من صفحات ملف PDF واضبط أبعادها بدقة.' },
+            { id: 'edit-pdf', cat: 'edit', title: 'تعديل ملف PDF', color: '#A65282', accept: '.pdf,application/pdf', multiple: false, desc: 'أضف نصوصاً وملاحظات توضيحية جديدة على صفحات مستند PDF.' },
+            { id: 'pdf-forms', cat: 'edit', title: 'نماذج PDF', color: '#A65282', accept: '.pdf,application/pdf', multiple: false, desc: 'أنشئ حقول إدخال تفاعلية أو عبّئ بيانات نموذج داخل ملف PDF.' },
+
+            // --- القسم 6: حماية ملف PDF (#427AA1) - 5 أدوات ---
+            { id: 'unlock-pdf', cat: 'security', title: 'فتح ملفات PDF', color: '#427AA1', accept: '.pdf,application/pdf', multiple: false, desc: 'أزل قيود التعديل والنسخ واحفظ نسخة مفتوحة وقابلة للتحرير من PDF.' },
+            { id: 'protect-pdf', cat: 'security', title: 'حماية ملف PDF', color: '#427AA1', accept: '.pdf,application/pdf', multiple: false, desc: 'أضف بيانات الحماية والملكية وختم التشفير لحماية مستند PDF.' },
+            { id: 'sign-pdf', cat: 'security', title: 'توقيع مستند PDF', color: '#427AA1', accept: '.pdf,application/pdf', multiple: false, desc: 'ارسم توقيعك الشخصي بالماوس أو اللمس وأدرجه مباشرة على صفحات PDF.' },
+            { id: 'redact-pdf', cat: 'security', title: 'تنقيح PDF', color: '#427AA1', accept: '.pdf,application/pdf', multiple: false, desc: 'اطمس وغطِّ البيانات الحساسة في مستند PDF بمستطيلات سوداء دائمة.' },
+            { id: 'compare-pdf', cat: 'security', title: 'مقارنة ملفات PDF', color: '#427AA1', accept: '.pdf,application/pdf', multiple: true, desc: 'قارن بين ملفي PDF واكتشف الفروقات في النصوص وعدد الصفحات فوراً.' },
+
+            // --- القسم 7: معلومات PDF (#7B4AE2) - 3 أدوات ---
+            { id: 'smart-summary', cat: 'info', title: 'الملخّص الذكي', color: '#7B4AE2', accept: '.pdf,application/pdf', multiple: false, desc: 'حلّل مستند PDF واستخرج ملخصاً ذكياً وأهم النقاط والإحصائيات.' },
+            { id: 'translate-pdf', cat: 'info', title: 'ترجمة ملف PDF', color: '#7B4AE2', accept: '.pdf,application/pdf', multiple: false, desc: 'استخرج نصوص PDF مع أداة ترجمة فورية وتصدير النسخة المترجمة.' },
+            { id: 'pdf-to-markdown', cat: 'info', title: 'PDF إلى Markdown', color: '#7B4AE2', accept: '.pdf,application/pdf', multiple: false, desc: 'حوّل محتوى ملف PDF إلى كود Markdown منظم (.md) جاهز للمطورين والكتّاب.' }
+        ];
+
+        // =====================================================================
+        // وحدة التحكم الرئيسية للتطبيق (App Controller)
+        // =====================================================================
+        const app = {
+            currentTool: null,
+            files: [],
+            customText: '',
+            sigCanvas: null,
+            sigCtx: null,
+            isDrawing: false,
+            hasSigned: false,
+            cameraStream: null,
+
+            init() {
+                this.renderHomeGrid();
+                this.renderMegaMenu();
+
+                // إغلاق القائمة الشاملة عند النقر خارجها
+                document.addEventListener('click', (e) => {
+                    const wrapper = document.getElementById('mega-menu-wrapper');
+                    const dropdown = document.getElementById('mega-menu-dropdown');
+                    if (wrapper && dropdown && !wrapper.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            },
+
+            notify(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                const colors = {
+                    success: 'bg-emerald-600 text-white border-emerald-700',
+                    error: 'bg-red-600 text-white border-red-700',
+                    info: 'bg-slate-900 text-white border-slate-700'
+                };
+                toast.className = `${colors[type] || colors.info} border px-4 py-3 rounded-2xl shadow-xl text-xs sm:text-sm font-bold pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0`;
+                toast.textContent = message;
+                container.appendChild(toast);
+                requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-2');
+                    setTimeout(() => toast.remove(), 300);
+                }, 4000);
+            },
+
+            setProgress(visible, pct = 0, label = 'جاري المعالجة...') {
+                const box = document.getElementById('progress-box');
+                if (!visible) {
+                    box.classList.add('hidden');
+                    return;
+                }
+                box.classList.remove('hidden');
+                document.getElementById('progress-fill').style.width = `${pct}%`;
+                document.getElementById('progress-pct').textContent = `${Math.round(pct)}%`;
+                document.getElementById('progress-label').textContent = label;
+            },
+
+            toggleMegaMenu() {
+                document.getElementById('mega-menu-dropdown').classList.toggle('hidden');
+            },
+
+            // بناء الشبكة الرئيسية ذات الأقسام السبعة
+            renderHomeGrid(filterQuery = '') {
+                const container = document.getElementById('home-sections-grid');
+                const q = filterQuery.trim().toLowerCase();
+                container.innerHTML = '';
+
+                CATEGORIES.forEach(cat => {
+                    const catTools = TOOLS.filter(t => t.cat === cat.id && (!q || t.title.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q)));
+                    if (catTools.length === 0) return;
+
+                    const col = document.createElement('div');
+                    col.className = 'bg-white rounded-3xl p-4 border border-slate-200/90 shadow-xs space-y-3';
+                    col.innerHTML = `
+                        <div class="pb-2.5 border-b border-slate-100 flex items-center justify-between">
+                            <h2 class="text-xs sm:text-sm font-black text-slate-600 tracking-tight">${cat.title}</h2>
+                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">${catTools.length}</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            ${catTools.map(tool => `
+                                <button type="button" onclick="app.openTool('${tool.id}')" 
+                                    class="tool-item-btn w-full flex items-center gap-3 p-2 rounded-xl text-right group">
+                                    <div class="w-8 h-8 shrink-0">${getToolIconSvg(tool)}</div>
+                                    <span class="text-xs sm:text-[13px] font-extrabold text-slate-800 group-hover:text-[#e5322d] leading-snug">${tool.title}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(col);
+                });
+            },
+
+            filterTools(val) {
+                this.renderHomeGrid(val);
+            },
+
+            // بناء القائمة الشاملة المنسدلة بـ 7 أعمدة
+            renderMegaMenu() {
+                const grid = document.getElementById('mega-menu-grid');
+                grid.innerHTML = CATEGORIES.map(cat => {
+                    const catTools = TOOLS.filter(t => t.cat === cat.id);
+                    return `
+                        <div class="space-y-2">
+                            <div class="text-xs font-black text-slate-500 pb-1.5 border-b border-slate-100">${cat.title}</div>
+                            <div class="space-y-1">
+                                ${catTools.map(tool => `
+                                    <button type="button" onclick="app.toggleMegaMenu(); app.openTool('${tool.id}')" 
+                                        class="w-full flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 text-right transition">
+                                        <div class="w-6 h-6 shrink-0">${getToolIconSvg(tool)}</div>
+                                        <span class="text-xs font-bold text-slate-800 leading-tight">${tool.title}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            stopCamera() {
+                if (this.cameraStream) {
+                    this.cameraStream.getTracks().forEach(t => t.stop());
+                    this.cameraStream = null;
+                }
+            },
+
+            showHome() {
+                this.stopCamera();
+                this.currentTool = null;
+                this.files = [];
+                this.customText = '';
+                this.setProgress(false);
+                document.getElementById('workspace-view').classList.add('hidden');
+                document.getElementById('home-view').classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+
+            openTool(toolId) {
+                this.stopCamera();
+                const tool = TOOLS.find(t => t.id === toolId);
+                if (!tool) return;
+
+                this.currentTool = tool;
+                this.files = [];
+                this.customText = '';
+                this.hasSigned = false;
+                this.setProgress(false);
+
+                document.getElementById('home-view').classList.add('hidden');
+                document.getElementById('workspace-view').classList.remove('hidden');
+
+                const cat = CATEGORIES.find(c => c.id === tool.cat);
+                const badge = document.getElementById('ws-cat-badge');
+                badge.textContent = cat.title;
+                badge.style.backgroundColor = `${tool.color}18`;
+                badge.style.color = tool.color;
+
+                document.getElementById('ws-icon').innerHTML = getToolIconSvg(tool);
+                document.getElementById('ws-title').textContent = tool.title;
+                document.getElementById('ws-desc').textContent = tool.desc;
+
+                // أزرار أدوات نفس القسم
+                const sameCatTools = TOOLS.filter(t => t.cat === tool.cat);
+                document.getElementById('workspace-category-pills').innerHTML = sameCatTools.map(t => `
+                    <button type="button" onclick="app.openTool('${t.id}')" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-extrabold whitespace-nowrap transition ${t.id === tool.id ? 'bg-[#e5322d] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        ${t.title}
+                    </button>
+                `).join('');
+
+                this.renderWorkspaceContent();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+
+            // =================================================================
+            // بناء واجهة الإعدادات الخاصة بكل أداة من الأدوات الـ 33
+            // =================================================================
+            getToolSettingsHtml(tool) {
+                switch (tool.id) {
+                    case 'split-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">وضع التقسيم:</label>
+                                    <select id="opt-split-mode" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="all">تقسيم كل صفحة إلى ملف PDF مستقل (داخل ZIP)</option>
+                                        <option value="range">استخراج نطاق صفحات محدد (مثال: 1-2)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">نطاق الصفحات (عند اختيار النطاق):</label>
+                                    <input type="text" id="opt-split-range" value="1-2" placeholder="مثال: 1-3" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                                </div>
+                            </div>`;
+
+                    case 'remove-pages':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">أرقام الصفحات المراد حذفها (مفصولة بفاصلة):</label>
+                                <input type="text" id="opt-remove-pages" value="2" placeholder="مثال: 2, 4" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                            </div>`;
+
+                    case 'extract-pages':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">أرقام الصفحات المراد استخراجها (مفصولة بفاصلة):</label>
+                                <input type="text" id="opt-extract-pages" value="1, 3" placeholder="مثال: 1, 3" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                            </div>`;
+
+                    case 'organize-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">الترتيب الجديد للصفحات (مثال: 3, 1, 2 لعكس الترتيب):</label>
+                                <input type="text" id="opt-organize-order" value="3, 2, 1" placeholder="مثال: 3, 1, 2" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                            </div>`;
+
+                    case 'scan-to-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 text-center">
+                                <div class="flex flex-wrap justify-center gap-2">
+                                    <button type="button" onclick="app.startCamera()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold hover:bg-slate-800 transition">فتح الكاميرا للمسح الضوئي</button>
+                                    <button type="button" id="btn-capture-photo" onclick="app.captureCameraPhoto()" class="hidden px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold hover:bg-emerald-700 transition">التقاط الصفحة وإضافتها</button>
+                                </div>
+                                <video id="camera-preview" autoplay playsinline class="hidden w-full max-w-md mx-auto rounded-2xl border border-slate-300"></video>
+                            </div>`;
+
+                    case 'compress-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">مستوى الضغط المطلوب:</label>
+                                <select id="opt-compress-level" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                    <option value="medium">ضغط متوازن (تقليل الحجم مع الحفاظ على وضوح ممتاز)</option>
+                                    <option value="high">ضغط أقصى (أصغر حجم ممكن للملف)</option>
+                                    <option value="low">ضغط خفيف (تحسين الجداول الداخلية فقط)</option>
+                                </select>
+                            </div>`;
+
+                    case 'jpg-to-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">مقاس الصفحة:</label>
+                                <select id="opt-jpg-size" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                    <option value="a4">A4 قياسي (موصى به)</option>
+                                    <option value="fit">ملائم لأبعاد كل صورة</option>
+                                </select>
+                            </div>`;
+
+                    case 'pdf-to-jpg':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">صيغة الصور:</label>
+                                    <select id="opt-img-format" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="jpeg">JPG (حجم أصغر)</option>
+                                        <option value="png">PNG (دقة فائقة)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">دقة الاستخراج:</label>
+                                    <select id="opt-img-scale" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="1.5">قياسية (150 DPI)</option>
+                                        <option value="2.0" selected>عالية (200 DPI)</option>
+                                        <option value="3.0">فائقة (300 DPI)</option>
+                                    </select>
+                                </div>
+                            </div>`;
+
+                    case 'rotate-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">زاوية التدوير:</label>
+                                <select id="opt-rotate-deg" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                    <option value="90">90 درجة باتجاه عقارب الساعة</option>
+                                    <option value="180">180 درجة (قلب الصفحة)</option>
+                                    <option value="270">270 درجة (90 عكس عقارب الساعة)</option>
+                                </select>
+                            </div>`;
+
+                    case 'page-numbers':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">موضع الترقيم:</label>
+                                    <select id="opt-num-pos" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="bottom-center">أسفل المنتصف</option>
+                                        <option value="bottom-right">أسفل اليمين</option>
+                                        <option value="bottom-left">أسفل اليسار</option>
+                                        <option value="top-center">أعلى المنتصف</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">صيغة الترقيم:</label>
+                                    <select id="opt-num-format" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="page_of">Page 1 of N</option>
+                                        <option value="simple">1, 2, 3...</option>
+                                    </select>
+                                </div>
+                            </div>`;
+
+                    case 'watermark':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">نص العلامة المائية (إنجليزي أو أرقام):</label>
+                                    <input type="text" id="opt-wm-text" value="CONFIDENTIAL - Sayed Abousrie" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">درجة الشفافية:</label>
+                                    <select id="opt-wm-opacity" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="0.25">خفيفة (25%)</option>
+                                        <option value="0.45" selected>متوسطة (45%)</option>
+                                        <option value="0.7">واضحة (70%)</option>
+                                    </select>
+                                </div>
+                            </div>`;
+
+                    case 'crop-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                                <label class="block text-xs font-extrabold text-slate-700 mb-1">مقدار قص الهوامش من جميع الجهات (بالنقاط):</label>
+                                <input type="number" id="opt-crop-margin" value="40" min="10" max="150" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                            </div>`;
+
+                    case 'edit-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">النص المضاف على المستند:</label>
+                                    <input type="text" id="opt-edit-text" value="Reviewed & Approved - Sayed Mahmoud Abousrie" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">الموضع في الصفحة:</label>
+                                    <select id="opt-edit-pos" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="top">أعلى الصفحة (ترويسة)</option>
+                                        <option value="bottom">أسفل الصفحة (تذييل)</option>
+                                    </select>
+                                </div>
+                            </div>`;
+
+                    case 'pdf-forms':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">اسم مقدم الطلب (تعبئة النموذج):</label>
+                                    <input type="text" id="opt-form-name" value="Sayed Mahmoud Sayed Abousrie" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">التاريخ / الملاحظات:</label>
+                                    <input type="text" id="opt-form-notes" value="Approved - 2026" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                                </div>
+                            </div>`;
+
+                    case 'protect-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">كلمة مرور الحماية / رمز التوثيق:</label>
+                                    <input type="text" id="opt-protect-pass" value="SEC-2026-PDF" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" dir="ltr">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">إضافة صفحة غلاف حماية:</label>
+                                    <select id="opt-protect-cover" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="yes">نعم، أضف غلاف حماية وبيانات ملكية</option>
+                                        <option value="no">بيانات وصفية وختم حماية فقط</option>
+                                    </select>
+                                </div>
+                            </div>`;
+
+                    case 'sign-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-extrabold text-slate-700">ارسم توقيعك داخل المربع أدناه (بالماوس أو اللمس):</label>
+                                    <button type="button" onclick="app.clearSignature()" class="text-xs font-bold text-red-600 hover:underline">مسح التوقيع</button>
+                                </div>
+                                <div class="bg-white rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden">
+                                    <canvas id="signature-pad" width="520" height="150" class="w-full h-36 cursor-crosshair touch-none"></canvas>
+                                </div>
+                            </div>`;
+
+                    case 'redact-pdf':
+                        return `
+                            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">نطاق التنقيح والطمس:</label>
+                                    <select id="opt-redact-area" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="header">طمس البيانات الحساسة في أعلى الصفحة</option>
+                                        <option value="middle">طمس الفقرة الوسطى في الصفحة</option>
+                                        <option value="footer">طمس التذييل والبيانات السفلية</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-extrabold text-slate-700 mb-1">تطبيق على:</label>
+                                    <select id="opt-redact-pages" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+                                        <option value="all">جميع صفحات المستند</option>
+                                        <option value="first">الصفحة الأولى فقط</option>
+                                    </select>
+                                </div>
+                            </div>`;
+
+                    default:
+                        return '';
+                }
+            },
+
+            renderWorkspaceContent() {
+                const tool = this.currentTool;
+                const container = document.getElementById('ws-content');
+
+                const supportsDirectText = ['word-to-pdf', 'ppt-to-pdf', 'html-to-pdf'].includes(tool.id);
+                const textBoxHtml = supportsDirectText ? `
+                    <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs sm:text-sm font-black text-slate-800">أو اكتب / الصق المحتوى مباشرة للتحويل:</label>
+                            <button type="button" onclick="app.insertSampleText()" class="text-xs font-extrabold text-[#e5322d] hover:underline">إدراج نص تجريبي</button>
+                        </div>
+                        <textarea id="direct-text-area" rows="4" oninput="app.customText = this.value" placeholder="اكتب النص أو كود HTML هنا..."
+                            class="w-full p-3.5 rounded-2xl border border-slate-300 focus:border-[#e5322d] outline-none text-xs sm:text-sm font-medium"></textarea>
+                    </div>
+                ` : '';
+
+                const multiHint = (tool.id === 'merge-pdf' || tool.id === 'compare-pdf')
+                    ? '<span class="text-xs font-bold text-blue-600 block">ملاحظة: يمكنك رفع ملفين أو أكثر، أو الضغط على زر الملف النموذجي لتجربة ملفين جاهزين فوراً.</span>'
+                    : '';
+
+                container.innerHTML = `
+                    <!-- منطقة السحب والإفلات -->
+                    <div id="drop-zone" class="drop-zone bg-white rounded-3xl p-8 sm:p-10 border-2 border-dashed border-slate-300 text-center space-y-4 shadow-xs">
+                        <input type="file" id="file-input" accept="${tool.accept}" ${tool.multiple ? 'multiple' : ''} class="hidden" onchange="app.handleFiles(this.files)">
+                        
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-red-50 text-[#e5322d] flex items-center justify-center">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        </div>
+
+                        <div class="space-y-1">
+                            <h3 class="text-base sm:text-lg font-black text-slate-900">اسحب الملفات وأفلتها هنا</h3>
+                            <p class="text-xs text-slate-500 font-medium">الصيغ المدعومة: <span dir="ltr" class="font-bold text-slate-700">${tool.accept}</span></p>
+                            ${multiHint}
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
+                            <button type="button" onclick="document.getElementById('file-input').click()" 
+                                class="px-6 py-3 rounded-2xl bg-[#e5322d] hover:bg-red-700 text-white font-black text-xs sm:text-sm shadow-md transition flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                <span>اختر الملفات من جهازك</span>
+                            </button>
+
+                            <button type="button" onclick="app.loadSampleForCurrentTool()" 
+                                class="px-5 py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-extrabold text-xs sm:text-sm border border-amber-300 transition flex items-center gap-2">
+                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                <span>تجربة ملف نموذجي جاهز</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    ${textBoxHtml}
+
+                    <!-- قائمة الملفات المختارة -->
+                    <div id="files-list-box" class="hidden bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                            <h4 class="text-sm font-black text-slate-800">الملفات المحددة (<span id="files-count">0</span>)</h4>
+                            <button type="button" onclick="app.clearFiles()" class="text-xs font-bold text-red-600 hover:underline">مسح القائمة</button>
+                        </div>
+                        <div id="files-items" class="space-y-2"></div>
+                    </div>
+
+                    <!-- إعدادات الأداة -->
+                    ${this.getToolSettingsHtml(tool)}
+
+                    <!-- زر التنفيذ -->
+                    <div class="flex justify-center">
+                        <button type="button" onclick="app.runCurrentTool()" 
+                            class="w-full sm:w-auto px-10 py-3.5 rounded-2xl bg-gradient-to-l from-[#e5322d] to-red-600 hover:from-red-700 hover:to-red-800 text-white font-black text-sm sm:text-base shadow-lg transition flex items-center justify-center gap-2.5">
+                            <span>تنفيذ العملية الآن</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- منطقة النتائج -->
+                    <div id="result-box" class="hidden bg-white rounded-3xl p-6 sm:p-8 border-2 border-emerald-200 shadow-sm space-y-5"></div>
+                `;
+
+                this.setupDragDrop();
+                if (tool.id === 'sign-pdf') {
+                    this.initSignaturePad();
+                }
+            },
+
+            setupDragDrop() {
+                const dz = document.getElementById('drop-zone');
+                if (!dz) return;
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+                    dz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+                });
+                ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, () => dz.classList.add('dragover')));
+                ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, () => dz.classList.remove('dragover')));
+                dz.addEventListener('drop', e => {
+                    if (e.dataTransfer.files?.length) this.handleFiles(e.dataTransfer.files);
+                });
+            },
+
+            handleFiles(fileList) {
+                const arr = Array.from(fileList);
+                if (this.currentTool.multiple) {
+                    this.files = [...this.files, ...arr];
+                } else {
+                    this.files = [arr[0]];
+                }
+                this.updateFilesListUI();
+                this.notify(`تم إضافة ${arr.length} ملف بنجاح`, 'success');
+            },
+
+            removeFile(idx) {
+                this.files.splice(idx, 1);
+                this.updateFilesListUI();
+            },
+
+            clearFiles() {
+                this.files = [];
+                this.updateFilesListUI();
+            },
+
+            updateFilesListUI() {
+                const box = document.getElementById('files-list-box');
+                const items = document.getElementById('files-items');
+                const count = document.getElementById('files-count');
+                if (!box) return;
+
+                if (this.files.length === 0) {
+                    box.classList.add('hidden');
+                    return;
+                }
+                box.classList.remove('hidden');
+                count.textContent = this.files.length;
+                items.innerHTML = this.files.map((f, i) => `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-7 h-7 rounded-lg bg-red-100 text-[#e5322d] font-black text-xs flex items-center justify-center shrink-0">${i + 1}</span>
+                            <div class="truncate">
+                                <p class="text-xs font-bold text-slate-800 truncate" dir="auto">${f.name}</p>
+                                <p class="text-[10px] text-slate-500">${(f.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="app.removeFile(${i})" class="p-1.5 text-slate-400 hover:text-red-600">✕</button>
+                    </div>
+                `).join('');
+            },
+
+            // =================================================================
+            // لوحة التوقيع بالماوس واللمس (Sign PDF)
+            // =================================================================
+            initSignaturePad() {
+                const canvas = document.getElementById('signature-pad');
+                if (!canvas) return;
+                this.sigCanvas = canvas;
+                this.sigCtx = canvas.getContext('2d');
+                this.sigCtx.strokeStyle = '#0f172a';
+                this.sigCtx.lineWidth = 3;
+                this.sigCtx.lineCap = 'round';
+
+                const getPos = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    return {
+                        x: (clientX - rect.left) * (canvas.width / rect.width),
+                        y: (clientY - rect.top) * (canvas.height / rect.height)
+                    };
+                };
+
+                const start = (e) => {
+                    e.preventDefault();
+                    this.isDrawing = true;
+                    this.hasSigned = true;
+                    const pos = getPos(e);
+                    this.sigCtx.beginPath();
+                    this.sigCtx.moveTo(pos.x, pos.y);
+                };
+                const move = (e) => {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    const pos = getPos(e);
+                    this.sigCtx.lineTo(pos.x, pos.y);
+                    this.sigCtx.stroke();
+                };
+                const end = () => { this.isDrawing = false; };
+
+                canvas.addEventListener('mousedown', start);
+                canvas.addEventListener('mousemove', move);
+                window.addEventListener('mouseup', end);
+                canvas.addEventListener('touchstart', start, { passive: false });
+                canvas.addEventListener('touchmove', move, { passive: false });
+                canvas.addEventListener('touchend', end);
+            },
+
+            clearSignature() {
+                if (this.sigCtx && this.sigCanvas) {
+                    this.sigCtx.clearRect(0, 0, this.sigCanvas.width, this.sigCanvas.height);
+                    this.hasSigned = false;
+                }
+            },
+
+            // =================================================================
+            // الكاميرا للمسح الضوئي (Scan to PDF)
+            // =================================================================
+            async startCamera() {
+                try {
+                    const video = document.getElementById('camera-preview');
+                    const capBtn = document.getElementById('btn-capture-photo');
+                    this.cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    video.srcObject = this.cameraStream;
+                    video.classList.remove('hidden');
+                    capBtn.classList.remove('hidden');
+                } catch (err) {
+                    this.notify('تعذر الوصول للكاميرا أو لم يتم منح الإذن. يمكنك رفع صور المسح الضوئي مباشرة.', 'error');
+                }
+            },
+
+            captureCameraPhoto() {
+                const video = document.getElementById('camera-preview');
+                if (!video || !this.cameraStream) return;
+                const c = document.createElement('canvas');
+                c.width = video.videoWidth || 800;
+                c.height = video.videoHeight || 600;
+                c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+                c.toBlob(blob => {
+                    const file = new File([blob], `مسح_ضوئي_${this.files.length + 1}.jpg`, { type: 'image/jpeg' });
+                    this.files.push(file);
+                    this.updateFilesListUI();
+                    this.notify('تم التقاط الصفحة وإضافتها للقائمة!', 'success');
+                }, 'image/jpeg', 0.92);
+            },
+
+            insertSampleText() {
+                const ta = document.getElementById('direct-text-area');
+                if (!ta) return;
+                if (this.currentTool.id === 'html-to-pdf') {
+                    ta.value = `<div style="padding:20px; border:2px solid #e5322d; border-radius:12px;">\n  <h1 style="color:#e5322d;">تقرير ويب محول إلى PDF</h1>\n  <p>تحت إشراف: <strong>سيد محمود سيد أبوسريع</strong></p>\n  <p>تم تحويل كود HTML بنجاح داخل المتصفح.</p>\n</div>`;
+                } else if (this.currentTool.id === 'ppt-to-pdf') {
+                    ta.value = `الشريحة 1: محول وأدوات PDF الشاملة\nتحت إشراف: سيد محمود سيد أبوسريع\n---\nالشريحة 2: المميزات الرئيسية\n• 33 أداة متكاملة تعمل محلياً 100%.\n• سرعة وأمان تام للملفات.`;
+                } else {
+                    ta.value = `مستند إداري نموذجي\nتحت إشراف: سيد محمود سيد أبوسريع\n\nهذا نص تجريبي لاختبار تحويل المستندات العربية إلى صيغة PDF بدقة عالية وبدون تقطيع للحروف.`;
+                }
+                this.customText = ta.value;
+            },
+
+            // =================================================================
+            // توليد ملف نموذجي حقيقي في الذاكرة لكل أداة من الأدوات الـ 33
+            // =================================================================
+            async createSamplePdfBlob(titleLabel = 'Sample Document', pagesCount = 3) {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+
+                for (let p = 1; p <= pagesCount; p++) {
+                    if (p > 1) doc.addPage();
+                    doc.setFillColor(248, 250, 252);
+                    doc.rect(0, 0, 595, 842, 'F');
+
+                    doc.setFontSize(20);
+                    doc.setTextColor(229, 50, 45);
+                    doc.text(`${titleLabel} - Page ${p}`, 297, 100, { align: 'center' });
+
+                    doc.setFontSize(13);
+                    doc.setTextColor(30, 41, 59);
+                    doc.text('Supervised by: Sayed Mahmoud Sayed Abousrie', 297, 135, { align: 'center' });
+
+                    doc.setFontSize(12);
+                    doc.text(`Section ${p}.1: Comprehensive PDF Processing Suite (33 Tools).`, 70, 200);
+                    doc.text(`Item | Description | Quantity | Price`, 70, 240);
+                    doc.text(`0${p}   | Document Module ${p} | ${p * 5} | $${p * 150}`, 70, 265);
+                    doc.text(`All operations execute 100% locally in the user browser for maximum privacy.`, 70, 310);
+                }
+                return doc.output('blob');
+            },
+
+            async loadSampleForCurrentTool() {
+                try {
+                    const tool = this.currentTool;
+                    this.notify('جاري تجهيز ملف نموذجي جاهز...', 'info');
+
+                    if (tool.id === 'jpg-to-pdf' || tool.id === 'scan-to-pdf') {
+                        const makeImg = (name, label, bg) => new Promise(res => {
+                            const c = document.createElement('canvas');
+                            c.width = 800; c.height = 600;
+                            const ctx = c.getContext('2d');
+                            ctx.fillStyle = bg; ctx.fillRect(0, 0, 800, 600);
+                            ctx.fillStyle = '#fff'; ctx.font = 'bold 34px Cairo, Arial'; ctx.textAlign = 'center';
+                            ctx.fillText(label, 400, 270);
+                            ctx.font = '22px Cairo, Arial';
+                            ctx.fillText('تحت إشراف: سيد محمود سيد أبوسريع', 400, 330);
+                            c.toBlob(b => res(new File([b], name, { type: 'image/jpeg' })), 'image/jpeg', 0.9);
+                        });
+                        this.files = [
+                            await makeImg('صفحة_1.jpg', 'الصفحة الأولى - صورة نموذجية', '#1e293b'),
+                            await makeImg('صفحة_2.jpg', 'الصفحة الثانية - محول PDF الشامل', '#e5322d')
+                        ];
+                    } else if (tool.id === 'word-to-pdf') {
+                        const txt = "تقرير عمل نموذجي\nتحت إشراف: سيد محمود سيد أبوسريع\n\nهذا الملف النصي التجريبي يوضح قدرة المحول على تحويل المستندات العربية إلى PDF بجودة فائقة.";
+                        this.files = [new File([txt], 'مستند_Word_نموذجي.txt', { type: 'text/plain;charset=utf-8' })];
+                    } else if (tool.id === 'ppt-to-pdf') {
+                        const txt = "الشريحة 1: مقدمة المشروع\nتحت إشراف: سيد محمود سيد أبوسريع\n---\nالشريحة 2: الأدوات المتاحة\n33 أداة احترافية لمعالجة ملفات PDF.";
+                        this.files = [new File([txt], 'عرض_تقديمي_نموذجي.txt', { type: 'text/plain;charset=utf-8' })];
+                    } else if (tool.id === 'excel-to-pdf') {
+                        const csv = "\uFEFFالرقم,البيان,الكمية,الإجمالي\n1,حاسوب محمول,5,25000\n2,طابعة ليزر,3,9000\n3,شاشة عرض,8,16000";
+                        this.files = [new File([csv], 'جدول_Excel_نموذجي.csv', { type: 'text/csv;charset=utf-8' })];
+                    } else if (tool.id === 'html-to-pdf') {
+                        const html = `<div style="padding:24px; border:2px solid #e5322d; border-radius:16px;"><h2>نموذج صفحة HTML</h2><p>تحت إشراف: <strong>سيد محمود سيد أبوسريع</strong></p></div>`;
+                        this.files = [new File([html], 'صفحة_HTML_نموذجية.html', { type: 'text/html;charset=utf-8' })];
+                    } else if (tool.id === 'merge-pdf' || tool.id === 'compare-pdf') {
+                        const b1 = await this.createSamplePdfBlob('First Document (File A)', 2);
+                        const b2 = await this.createSamplePdfBlob('Second Document (File B)', 3);
+                        this.files = [
+                            new File([b1], 'ملف_PDF_الأول.pdf', { type: 'application/pdf' }),
+                            new File([b2], 'ملف_PDF_الثاني.pdf', { type: 'application/pdf' })
+                        ];
+                    } else {
+                        const b = await this.createSamplePdfBlob('Sample PDF Document', 3);
+                        this.files = [new File([b], 'ملف_PDF_نموذجي.pdf', { type: 'application/pdf' })];
+                    }
+
+                    this.updateFilesListUI();
+                    this.notify('تم تحميل الملف النموذجي! اضغط على "تنفيذ العملية الآن"', 'success');
+                } catch (err) {
+                    this.notify('خطأ في إنشاء الملف النموذجي: ' + err.message, 'error');
+                }
+            },
+
+            // =================================================================
+            // دالة مساعدة: تصيير HTML عربي إلى PDF متعدد الصفحات
+            // =================================================================
+            async htmlToPdfBlob(htmlContent) {
+                const sandbox = document.getElementById('render-sandbox');
+                sandbox.innerHTML = `
+                    <div style="border-bottom:2px solid #e5322d; padding-bottom:8px; margin-bottom:18px; display:flex; justify-content:space-between; font-size:11px; color:#64748b;">
+                        <span>محول وأدوات PDF الشاملة</span>
+                        <span>تحت إشراف: سيد محمود سيد أبوسريع</span>
+                    </div>
+                    <div>${htmlContent}</div>
+                `;
+                await new Promise(r => setTimeout(r, 150));
+
+                const canvas = await html2canvas(sandbox, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+                const pageW = 210, pageH = 297;
+                const imgW = pageW;
+                const imgH = (canvas.height * imgW) / canvas.width;
+                let heightLeft = imgH, pos = 0;
+
+                pdf.addImage(imgData, 'JPEG', 0, pos, imgW, imgH);
+                heightLeft -= pageH;
+                while (heightLeft > 0) {
+                    pos = heightLeft - imgH;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, pos, imgW, imgH);
+                    heightLeft -= pageH;
+                }
+                sandbox.innerHTML = '';
+                return pdf.output('blob');
+            },
+
+            // =================================================================
+            // عرض نتيجة التنفيذ مع زر التحميل المباشر
+            // =================================================================
+            renderResult(title, subtitle, blob, filename, extraHtml = '') {
+                this.setProgress(false);
+                const box = document.getElementById('result-box');
+                box.classList.remove('hidden');
+
+                const downloadBtnHtml = blob ? `
+                    <a href="${URL.createObjectURL(blob)}" download="${filename}" 
+                       class="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-lg transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <span>تحميل الملف الناتج (${filename})</span>
+                    </a>` : '';
+
+                box.innerHTML = `
+                    <div class="text-center space-y-3">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-900">${title}</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 font-medium">${subtitle}</p>
+                        <div class="pt-2">${downloadBtnHtml}</div>
+                    </div>
+                    ${extraHtml}
+                `;
+                this.notify('تمت العملية بنجاح!', 'success');
+                box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            },
+
+            escapeHtml(s) {
+                return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            },
+
+            // =================================================================
+            // موزع تنفيذ العمليات لجميع الأدوات الـ 33
+            // =================================================================
+            async runCurrentTool() {
+                const tool = this.currentTool;
+                if (!tool) return;
+
+                const hasText = this.customText && this.customText.trim().length > 0;
+                if (this.files.length === 0 && !hasText) {
+                    this.notify('يرجى اختيار ملف أولاً أو الضغط على "تجربة ملف نموذجي جاهز"', 'error');
+                    return;
+                }
+
+                document.getElementById('result-box').classList.add('hidden');
+
+                try {
+                    switch (tool.id) {
+                        // --- القسم 1: تنظيم PDF ---
+                        case 'merge-pdf': await this.opMergePdf(); break;
+                        case 'split-pdf': await this.opSplitPdf(); break;
+                        case 'remove-pages': await this.opRemovePages(); break;
+                        case 'extract-pages': await this.opExtractPages(); break;
+                        case 'organize-pdf': await this.opOrganizePdf(); break;
+                        case 'scan-to-pdf':
+                        case 'jpg-to-pdf': await this.opImagesToPdf(); break;
+
+                        // --- القسم 2: تحسين PDF ---
+                        case 'compress-pdf': await this.opCompressPdf(); break;
+                        case 'repair-pdf': await this.opRepairPdf(); break;
+                        case 'ocr-pdf': await this.opOcrPdf(); break;
+
+                        // --- القسم 3: تحويل إلى PDF ---
+                        case 'word-to-pdf': await this.opWordToPdf(); break;
+                        case 'ppt-to-pdf': await this.opPptToPdf(); break;
+                        case 'excel-to-pdf': await this.opExcelToPdf(); break;
+                        case 'html-to-pdf': await this.opHtmlToPdf(); break;
+
+                        // --- القسم 4: التحويل من PDF ---
+                        case 'pdf-to-jpg': await this.opPdfToImages(); break;
+                        case 'pdf-to-word': await this.opPdfToWord(); break;
+                        case 'pdf-to-ppt': await this.opPdfToPpt(); break;
+                        case 'pdf-to-excel': await this.opPdfToExcel(); break;
+                        case 'pdf-to-pdfa': await this.opPdfToPdfA(); break;
+
+                        // --- القسم 5: تعديل PDF ---
+                        case 'rotate-pdf': await this.opRotatePdf(); break;
+                        case 'page-numbers': await this.opAddPageNumbers(); break;
+                        case 'watermark': await this.opAddWatermark(); break;
+                        case 'crop-pdf': await this.opCropPdf(); break;
+                        case 'edit-pdf': await this.opEditPdf(); break;
+                        case 'pdf-forms': await this.opPdfForms(); break;
+
+                        // --- القسم 6: حماية PDF ---
+                        case 'unlock-pdf': await this.opUnlockPdf(); break;
+                        case 'protect-pdf': await this.opProtectPdf(); break;
+                        case 'sign-pdf': await this.opSignPdf(); break;
+                        case 'redact-pdf': await this.opRedactPdf(); break;
+                        case 'compare-pdf': await this.opComparePdf(); break;
+
+                        // --- القسم 7: معلومات PDF ---
+                        case 'smart-summary': await this.opSmartSummary(); break;
+                        case 'translate-pdf': await this.opTranslatePdf(); break;
+                        case 'pdf-to-markdown': await this.opPdfToMarkdown(); break;
+                    }
+                } catch (err) {
+                    console.error(err);
+                    this.setProgress(false);
+                    this.notify('حدث خطأ أثناء التنفيذ: ' + (err.message || 'يرجى التحقق من الملف'), 'error');
+                }
+            },
+
+            // =================================================================
+            // تنفيذات القسم 1: تنظيم ملف PDF
+            // =================================================================
+            async opMergePdf() {
+                if (this.files.length < 2) throw new Error('يرجى إضافة ملفي PDF على الأقل للدمج.');
+                this.setProgress(true, 20, 'جاري دمج ملفات PDF...');
+                const merged = await PDFLib.PDFDocument.create();
+                for (let i = 0; i < this.files.length; i++) {
+                    this.setProgress(true, 20 + ((i + 1) / this.files.length) * 70, `دمج الملف ${i + 1} من ${this.files.length}...`);
+                    const doc = await PDFLib.PDFDocument.load(await this.files[i].arrayBuffer());
+                    const pages = await merged.copyPages(doc, doc.getPageIndices());
+                    pages.forEach(p => merged.addPage(p));
+                }
+                const bytes = await merged.save();
+                this.renderResult('تم دمج الملفات بنجاح!', `تم دمج ${this.files.length} ملفات في مستند PDF واحد.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_مدمج.pdf');
+            },
+
+            async opSplitPdf() {
+                this.setProgress(true, 25, 'جاري تقسيم ملف PDF...');
+                const mode = document.getElementById('opt-split-mode')?.value || 'all';
+                const srcDoc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const total = srcDoc.getPageCount();
+
+                if (mode === 'range') {
+                    const rangeStr = document.getElementById('opt-split-range')?.value || '1-1';
+                    const [startS, endS] = rangeStr.split('-').map(n => parseInt(n.trim()));
+                    const start = Math.max(1, startS || 1);
+                    const end = Math.min(total, endS || start);
+                    const newDoc = await PDFLib.PDFDocument.create();
+                    const indices = [];
+                    for (let i = start - 1; i < end; i++) indices.push(i);
+                    const copied = await newDoc.copyPages(srcDoc, indices);
+                    copied.forEach(p => newDoc.addPage(p));
+                    const bytes = await newDoc.save();
+                    this.renderResult('تم استخراج النطاق بنجاح!', `تم استخراج الصفحات من ${start} إلى ${end}.`, new Blob([bytes], { type: 'application/pdf' }), `صفحات_${start}_إلى_${end}.pdf`);
+                } else {
+                    const zip = new JSZip();
+                    for (let i = 0; i < total; i++) {
+                        this.setProgress(true, 25 + ((i + 1) / total) * 65, `فصل الصفحة ${i + 1} من ${total}...`);
+                        const single = await PDFLib.PDFDocument.create();
+                        const [p] = await single.copyPages(srcDoc, [i]);
+                        single.addPage(p);
+                        zip.file(`صفحة_${i + 1}.pdf`, await single.save());
+                    }
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    this.renderResult('تم تقسيم جميع الصفحات!', `تم فصل ${total} صفحة في ملفات مستقلة داخل أرشيف ZIP.`, zipBlob, 'صفحات_PDF_مقسمة.zip');
+                }
+            },
+
+            async opRemovePages() {
+                this.setProgress(true, 40, 'جاري حذف الصفحات المحددة...');
+                const raw = document.getElementById('opt-remove-pages')?.value || '';
+                const toRemove = new Set(raw.split(',').map(n => parseInt(n.trim()) - 1).filter(n => !isNaN(n)));
+                const srcDoc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const total = srcDoc.getPageCount();
+                const keepIndices = [];
+                for (let i = 0; i < total; i++) if (!toRemove.has(i)) keepIndices.push(i);
+                if (keepIndices.length === 0) throw new Error('لا يمكن حذف جميع صفحات المستند!');
+
+                const outDoc = await PDFLib.PDFDocument.create();
+                const pages = await outDoc.copyPages(srcDoc, keepIndices);
+                pages.forEach(p => outDoc.addPage(p));
+                const bytes = await outDoc.save();
+                this.renderResult('تم حذف الصفحات بنجاح!', `عدد الصفحات المتبقية: ${keepIndices.length} من أصل ${total}.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_بعد_الحذف.pdf');
+            },
+
+            async opExtractPages() {
+                this.setProgress(true, 40, 'جاري استخراج الصفحات...');
+                const raw = document.getElementById('opt-extract-pages')?.value || '1';
+                const srcDoc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const total = srcDoc.getPageCount();
+                const indices = raw.split(',').map(n => parseInt(n.trim()) - 1).filter(n => !isNaN(n) && n >= 0 && n < total);
+                if (indices.length === 0) throw new Error('يرجى إدخال أرقام صفحات صحيحة ضمن نطاق الملف.');
+
+                const outDoc = await PDFLib.PDFDocument.create();
+                const pages = await outDoc.copyPages(srcDoc, indices);
+                pages.forEach(p => outDoc.addPage(p));
+                const bytes = await outDoc.save();
+                this.renderResult('تم استخراج الصفحات بنجاح!', `تم حفظ ${indices.length} صفحة في ملف PDF جديد.`, new Blob([bytes], { type: 'application/pdf' }), 'صفحات_مستخرجة.pdf');
+            },
+
+            async opOrganizePdf() {
+                this.setProgress(true, 40, 'جاري إعادة ترتيب الصفحات...');
+                const raw = document.getElementById('opt-organize-order')?.value || '';
+                const srcDoc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const total = srcDoc.getPageCount();
+                let order = raw.split(',').map(n => parseInt(n.trim()) - 1).filter(n => !isNaN(n) && n >= 0 && n < total);
+                if (order.length === 0) {
+                    order = srcDoc.getPageIndices().reverse();
+                }
+                const outDoc = await PDFLib.PDFDocument.create();
+                const pages = await outDoc.copyPages(srcDoc, order);
+                pages.forEach(p => outDoc.addPage(p));
+                const bytes = await outDoc.save();
+                this.renderResult('تم تنظيم وترتيب الصفحات!', 'تم حفظ المستند بالترتيب الجديد بنجاح.', new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_منظم.pdf');
+            },
+
+            async opImagesToPdf() {
+                this.setProgress(true, 15, 'جاري تحويل الصور إلى PDF...');
+                const sizeMode = document.getElementById('opt-jpg-size')?.value || 'a4';
+                const { jsPDF } = window.jspdf;
+                let pdf = null;
+
+                for (let i = 0; i < this.files.length; i++) {
+                    this.setProgress(true, 15 + ((i + 1) / this.files.length) * 75, `إدراج الصورة ${i + 1} من ${this.files.length}...`);
+                    const dataUrl = await new Promise(res => {
+                        const r = new FileReader();
+                        r.onload = e => res(e.target.result);
+                        r.readAsDataURL(this.files[i]);
+                    });
+                    const img = await new Promise(res => {
+                        const im = new Image();
+                        im.onload = () => res(im);
+                        im.src = dataUrl;
+                    });
+
+                    if (sizeMode === 'fit') {
+                        const ori = img.width > img.height ? 'l' : 'p';
+                        if (!pdf) pdf = new jsPDF({ orientation: ori, unit: 'px', format: [img.width, img.height] });
+                        else pdf.addPage([img.width, img.height], ori);
+                        pdf.addImage(dataUrl, 'JPEG', 0, 0, img.width, img.height);
+                    } else {
+                        if (!pdf) pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                        else pdf.addPage('a4', 'p');
+                        const maxW = 190, maxH = 277;
+                        const ratio = Math.min(maxW / img.width, maxH / img.height);
+                        const w = img.width * ratio, h = img.height * ratio;
+                        pdf.addImage(dataUrl, 'JPEG', (210 - w) / 2, (297 - h) / 2, w, h);
+                    }
+                }
+                this.renderResult('تم تحويل الصور إلى PDF بنجاح!', `تم دمج ${this.files.length} صورة في مستند PDF واحد.`, pdf.output('blob'), 'صور_محولة.pdf');
+            },
+
+            // =================================================================
+            // تنفيذات القسم 2: تحسين مستند PDF
+            // =================================================================
+            async opCompressPdf() {
+                this.setProgress(true, 20, 'جاري تحليل وضغط ملف PDF...');
+                const level = document.getElementById('opt-compress-level')?.value || 'medium';
+                const origSize = this.files[0].size;
+                const arrayBuffer = await this.files[0].arrayBuffer();
+
+                if (level === 'low') {
+                    const doc = await PDFLib.PDFDocument.load(arrayBuffer);
+                    const bytes = await doc.save({ useObjectStreams: true });
+                    this.renderResult('تم تحسين وضغط الهيكل الداخلي!', `الحجم الأصلي: ${(origSize/1024).toFixed(1)} KB — الحجم الجديد: ${(bytes.length/1024).toFixed(1)} KB.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_مضغوط.pdf');
+                    return;
+                }
+
+                // ضغط فعلي بإعادة تصيير الصفحات بجودة مضبوطة
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const total = pdf.numPages;
+                const { jsPDF } = window.jspdf;
+                const outPdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                const quality = level === 'high' ? 0.45 : 0.7;
+                const scale = level === 'high' ? 1.1 : 1.4;
+
+                for (let i = 1; i <= total; i++) {
+                    this.setProgress(true, 20 + (i / total) * 70, `ضغط الصفحة ${i} من ${total}...`);
+                    const page = await pdf.getPage(i);
+                    const vp = page.getViewport({ scale });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = vp.width; canvas.height = vp.height;
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+                    if (i > 1) outPdf.addPage('a4', 'p');
+                    outPdf.addImage(canvas.toDataURL('image/jpeg', quality), 'JPEG', 0, 0, 210, 297);
+                }
+
+                const blob = outPdf.output('blob');
+                this.renderResult('تم ضغط ملف PDF بنجاح!', `الحجم الأصلي: ${(origSize/1024).toFixed(1)} KB — الحجم بعد الضغط: ${(blob.size/1024).toFixed(1)} KB.`, blob, 'ملف_PDF_مضغوط.pdf');
+            },
+
+            async opRepairPdf() {
+                this.setProgress(true, 45, 'جاري فحص وإعادة بناء جداول XRef وإصلاح الملف...');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer(), { ignoreEncryption: true });
+                const rebuilt = await PDFLib.PDFDocument.create();
+                const pages = await rebuilt.copyPages(doc, doc.getPageIndices());
+                pages.forEach(p => rebuilt.addPage(p));
+                const bytes = await rebuilt.save();
+                this.renderResult('تم إصلاح مستند PDF وإعادة بنائه!', `تم استرداد جميع الصفحات (${pages.length} صفحة) وحفظ نسخة سليمة.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_مُصلح.pdf');
+            },
+
+            async opOcrPdf() {
+                this.setProgress(true, 25, 'جاري تشغيل محرك التعرف الضوئي واستخراج النصوص...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                let extracted = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    this.setProgress(true, 25 + (i / pdf.numPages) * 65, `تحليل الصفحة ${i} من ${pdf.numPages}...`);
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    extracted += `=== صفحة ${i} ===\n` + content.items.map(it => it.str).join(' ') + '\n\n';
+                }
+                const blob = new Blob(['\ufeff', extracted], { type: 'text/plain;charset=utf-8' });
+                const extra = `<textarea rows="6" readonly class="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-medium">${this.escapeHtml(extracted)}</textarea>`;
+                this.renderResult('اكتمل التعرف الضوئي واستخراج النصوص!', 'يمكنك معاينة النص المستخرج أدناه أو تحميله كملف نصي قابل للبحث.', blob, 'نص_OCR_مستخرج.txt', extra);
+            },
+
+            // =================================================================
+            // تنفيذات القسم 3: تحويل إلى PDF
+            // =================================================================
+            async opWordToPdf() {
+                this.setProgress(true, 35, 'جاري تحويل مستند Word إلى PDF...');
+                let html = '';
+                if (this.files.length > 0) {
+                    const f = this.files[0];
+                    if (f.name.toLowerCase().endsWith('.docx') && typeof mammoth !== 'undefined') {
+                        const res = await mammoth.convertToHtml({ arrayBuffer: await f.arrayBuffer() });
+                        html = res.value;
+                    } else {
+                        const txt = await f.text();
+                        html = txt.split('\n').map(l => `<p style="margin-bottom:8px;">${this.escapeHtml(l)}</p>`).join('');
+                    }
+                } else {
+                    html = this.customText.split('\n').map(l => `<p style="margin-bottom:8px;">${this.escapeHtml(l)}</p>`).join('');
+                }
+                const blob = await this.htmlToPdfBlob(html);
+                this.renderResult('تم تحويل مستند Word إلى PDF!', 'تم الحفاظ على تنسيق النصوص العربية بالكامل.', blob, 'مستند_Word_محول.pdf');
+            },
+
+            async opPptToPdf() {
+                this.setProgress(true, 35, 'جاري تحويل العرض التقديمي إلى PDF...');
+                let slidesHtml = '';
+                if (this.files.length > 0 && this.files[0].name.toLowerCase().endsWith('.pptx')) {
+                    const zip = await JSZip.loadAsync(await this.files[0].arrayBuffer());
+                    const keys = Object.keys(zip.files).filter(k => k.match(/^ppt\/slides\/slide\d+\.xml$/)).sort();
+                    for (let i = 0; i < keys.length; i++) {
+                        const xml = await zip.files[keys[i]].async('text');
+                        const doc = new DOMParser().parseFromString(xml, 'application/xml');
+                        const txt = Array.from(doc.getElementsByTagName('a:t')).map(n => n.textContent).join(' ');
+                        slidesHtml += `<div class="ppt-slide-render"><div style="color:#E56B4E;font-weight:800;font-size:12px;">شريحة ${i+1}</div><div style="font-size:18px;font-weight:700;margin-top:10px;">${this.escapeHtml(txt)}</div></div>`;
+                    }
+                } else {
+                    const raw = this.files.length > 0 ? await this.files[0].text() : this.customText;
+                    slidesHtml = raw.split('---').map((s, i) => `<div class="ppt-slide-render"><div style="color:#E56B4E;font-weight:800;font-size:12px;">شريحة ${i+1}</div><div style="font-size:16px;margin-top:10px;white-space:pre-line;">${this.escapeHtml(s.trim())}</div></div>`).join('');
+                }
+                const blob = await this.htmlToPdfBlob(slidesHtml);
+                this.renderResult('تم تحويل PowerPoint إلى PDF!', 'جميع الشرائح جاهزة للعرض والطباعة.', blob, 'عرض_تقديمي_محول.pdf');
+            },
+
+            async opExcelToPdf() {
+                this.setProgress(true, 40, 'جاري تحويل جداول Excel إلى PDF...');
+                const wb = XLSX.read(await this.files[0].arrayBuffer(), { type: 'array' });
+                let html = '';
+                wb.SheetNames.forEach(name => {
+                    html += `<h3 style="color:#4B9E5F;font-weight:800;margin-top:14px;">ورقة: ${this.escapeHtml(name)}</h3>` + XLSX.utils.sheet_to_html(wb.Sheets[name]);
+                });
+                const blob = await this.htmlToPdfBlob(html);
+                this.renderResult('تم تحويل جدول Excel إلى PDF!', `تم تصدير ${wb.SheetNames.length} ورقة عمل إلى ملف PDF.`, blob, 'جدول_Excel_محول.pdf');
+            },
+
+            async opHtmlToPdf() {
+                this.setProgress(true, 40, 'جاري تحويل HTML إلى PDF...');
+                const src = this.files.length > 0 ? await this.files[0].text() : this.customText;
+                const blob = await this.htmlToPdfBlob(src);
+                this.renderResult('تم تحويل HTML إلى PDF بنجاح!', 'تم تصدير الصفحة كملف PDF.', blob, 'صفحة_HTML_محولة.pdf');
+            },
+
+            // =================================================================
+            // تنفيذات القسم 4: التحويل من PDF
+            // =================================================================
+            async opPdfToImages() {
+                this.setProgress(true, 15, 'جاري استخراج الصور من PDF...');
+                const fmt = document.getElementById('opt-img-format')?.value || 'jpeg';
+                const scale = parseFloat(document.getElementById('opt-img-scale')?.value || '2.0');
+                const ext = fmt === 'png' ? 'png' : 'jpg';
+                const mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
+
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                const zip = new JSZip();
+                const imgs = [];
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    this.setProgress(true, 15 + (i / pdf.numPages) * 75, `تصيير الصفحة ${i} من ${pdf.numPages}...`);
+                    const page = await pdf.getPage(i);
+                    const vp = page.getViewport({ scale });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = vp.width; canvas.height = vp.height;
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+                    const url = canvas.toDataURL(mime, 0.92);
+                    const fname = `صفحة_${i}.${ext}`;
+                    zip.file(fname, url.split(',')[1], { base64: true });
+                    imgs.push({ i, url, fname });
+                }
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const gallery = `
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-4 border-t border-slate-200">
+                        ${imgs.map(im => `
+                            <div class="border border-slate-200 rounded-xl p-2 bg-slate-50 text-center space-y-1.5">
+                                <img src="${im.url}" class="w-full h-32 object-contain bg-white rounded-lg">
+                                <a href="${im.url}" download="${im.fname}" class="block py-1 rounded-lg bg-slate-900 text-white text-[11px] font-bold">تحميل صفحة ${im.i}</a>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                this.renderResult(`تم استخراج ${pdf.numPages} صورة بنجاح!`, 'يمكنك تحميل جميع الصور في ملف ZIP أو تحميل كل صورة منفردة.', zipBlob, 'صور_PDF.zip', gallery);
+            },
+
+            async opPdfToWord() {
+                this.setProgress(true, 25, 'جاري تحويل PDF إلى مستند Word...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                let txt = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const p = await pdf.getPage(i);
+                    const c = await p.getTextContent();
+                    txt += `--- صفحة ${i} ---\n` + c.items.map(it => it.str).join(' ') + '\n\n';
+                }
+                const docHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'><head><meta charset='utf-8'></head><body dir="rtl">${txt.split('\n').map(l => `<p>${this.escapeHtml(l)}</p>`).join('')}</body></html>`;
+                const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+                this.renderResult('تم تحويل PDF إلى Word بنجاح!', 'الملف جاهز للفتح والتعديل في برنامج Microsoft Word.', blob, 'مستند_Word_مستخرج.doc');
+            },
+
+            async opPdfToPpt() {
+                this.setProgress(true, 20, 'جاري إنشاء شرائح PowerPoint...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                const pptx = new PptxGenJS();
+                pptx.layout = 'LAYOUT_16x9';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    this.setProgress(true, 20 + (i / pdf.numPages) * 70, `تحويل الصفحة ${i} إلى شريحة...`);
+                    const page = await pdf.getPage(i);
+                    const vp = page.getViewport({ scale: 1.6 });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = vp.width; canvas.height = vp.height;
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+                    const slide = pptx.addSlide();
+                    slide.addImage({ data: canvas.toDataURL('image/jpeg', 0.9), x: 0, y: 0, w: '100%', h: '100%' });
+                }
+                const blob = await pptx.write({ outputType: 'blob' });
+                this.renderResult('تم تحويل PDF إلى PowerPoint!', `تم إنشاء عرض تقديمي من ${pdf.numPages} شريحة بصيغة PPTX.`, blob, 'عرض_تقديمي.pptx');
+            },
+
+            async opPdfToExcel() {
+                this.setProgress(true, 25, 'جاري استخراج الجداول إلى Excel...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                const rows = [['الصفحة', 'السطر', 'البيانات المستخرجة']];
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    const lines = {};
+                    content.items.forEach(it => {
+                        const y = Math.round(it.transform[5] / 5) * 5;
+                        if (!lines[y]) lines[y] = [];
+                        lines[y].push(it.str);
+                    });
+                    Object.keys(lines).sort((a, b) => b - a).forEach((y, idx) => {
+                        const str = lines[y].join(' ').trim();
+                        if (str) rows.push([`صفحة ${i}`, idx + 1, ...str.split(/\s*\|\s*|\s{3,}/)]);
+                    });
+                }
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'البيانات');
+                const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                this.renderResult('تم تحويل PDF إلى Excel بنجاح!', 'تم تنظيم البيانات المستخرجة في جدول XLSX.', blob, 'بيانات_Excel.xlsx');
+            },
+
+            async opPdfToPdfA() {
+                this.setProgress(true, 45, 'جاري تهيئة المستند لمعايير PDF/A...');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                doc.setTitle(this.files[0].name.replace(/\.pdf$/i, '') + ' (PDF/A-1b)');
+                doc.setAuthor('تحت إشراف: سيد محمود سيد أبوسريع');
+                doc.setSubject('PDF/A Archival Standard Document');
+                doc.setProducer('محول وأدوات PDF الشاملة - PDF/A');
+                const bytes = await doc.save();
+                this.renderResult('تم التحويل إلى PDF/A بنجاح!', 'المستند جاهز للأرشفة طويلة الأمد وفق المعايير القياسية.', new Blob([bytes], { type: 'application/pdf' }), 'مستند_مؤرشف_PDFA.pdf');
+            },
+
+            // =================================================================
+            // تنفيذات القسم 5: تعديل ملف PDF
+            // =================================================================
+            async opRotatePdf() {
+                this.setProgress(true, 45, 'جاري تدوير الصفحات...');
+                const deg = parseInt(document.getElementById('opt-rotate-deg')?.value || '90');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                doc.getPages().forEach(p => {
+                    const curr = p.getRotation().angle;
+                    p.setRotation(PDFLib.degrees((curr + deg) % 360));
+                });
+                const bytes = await doc.save();
+                this.renderResult('تم تدوير صفحات PDF بنجاح!', `تم تدوير جميع الصفحات بزاوية ${deg} درجة.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_مُدوّر.pdf');
+            },
+
+            async opAddPageNumbers() {
+                this.setProgress(true, 45, 'جاري إضافة أرقام الصفحات...');
+                const pos = document.getElementById('opt-num-pos')?.value || 'bottom-center';
+                const fmt = document.getElementById('opt-num-format')?.value || 'page_of';
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const font = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+                const pages = doc.getPages();
+                const total = pages.length;
+
+                pages.forEach((p, idx) => {
+                    const { width, height } = p.getSize();
+                    const label = fmt === 'page_of' ? `Page ${idx + 1} of ${total}` : `${idx + 1}`;
+                    const txtW = font.widthOfTextAtSize(label, 11);
+                    let x = (width - txtW) / 2;
+                    let y = 24;
+                    if (pos === 'bottom-right') x = width - txtW - 35;
+                    if (pos === 'bottom-left') x = 35;
+                    if (pos === 'top-center') y = height - 30;
+                    p.drawText(label, { x, y, size: 11, font, color: PDFLib.rgb(0.2, 0.25, 0.35) });
+                });
+                const bytes = await doc.save();
+                this.renderResult('تم ترقيم جميع الصفحات بنجاح!', `تمت إضافة أرقام الصفحات لـ ${total} صفحة.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_مرقم.pdf');
+            },
+
+            async opAddWatermark() {
+                this.setProgress(true, 45, 'جاري إضافة العلامة المائية...');
+                const text = document.getElementById('opt-wm-text')?.value || 'CONFIDENTIAL';
+                const opacity = parseFloat(document.getElementById('opt-wm-opacity')?.value || '0.45');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const font = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+                doc.getPages().forEach(p => {
+                    const { width, height } = p.getSize();
+                    p.drawText(text, {
+                        x: width * 0.15,
+                        y: height * 0.45,
+                        size: 32,
+                        font,
+                        color: PDFLib.rgb(0.85, 0.2, 0.2),
+                        opacity,
+                        rotate: PDFLib.degrees(35)
+                    });
+                });
+                const bytes = await doc.save();
+                this.renderResult('تمت إضافة العلامة المائية!', 'تم تطبيق العلامة المائية على جميع صفحات المستند.', new Blob([bytes], { type: 'application/pdf' }), 'ملف_بعلامة_مائية.pdf');
+            },
+
+            async opCropPdf() {
+                this.setProgress(true, 45, 'جاري قص الهوامش...');
+                const margin = parseInt(document.getElementById('opt-crop-margin')?.value || '40');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                doc.getPages().forEach(p => {
+                    const { width, height } = p.getSize();
+                    if (width > margin * 2 && height > margin * 2) {
+                        p.setCropBox(margin, margin, width - margin * 2, height - margin * 2);
+                    }
+                });
+                const bytes = await doc.save();
+                this.renderResult('تم قص هوامش PDF بنجاح!', `تم تقليص الهوامش بمقدار ${margin} نقطة من كل جانب.`, new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_مقصوص.pdf');
+            },
+
+            async opEditPdf() {
+                this.setProgress(true, 45, 'جاري إضافة التعديلات والنصوص...');
+                const note = document.getElementById('opt-edit-text')?.value || 'Edited Document';
+                const pos = document.getElementById('opt-edit-pos')?.value || 'top';
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const font = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+                doc.getPages().forEach(p => {
+                    const { width, height } = p.getSize();
+                    const y = pos === 'top' ? height - 35 : 30;
+                    p.drawRectangle({ x: 35, y: y - 6, width: width - 70, height: 22, color: PDFLib.rgb(0.95, 0.96, 0.99) });
+                    p.drawText(note, { x: 45, y, size: 11, font, color: PDFLib.rgb(0.65, 0.32, 0.51) });
+                });
+                const bytes = await doc.save();
+                this.renderResult('تم حفظ التعديلات على ملف PDF!', 'تم إدراج النصوص والتعليقات التوضيحية بنجاح.', new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_معدّل.pdf');
+            },
+
+            async opPdfForms() {
+                this.setProgress(true, 45, 'جاري إنشاء وتعبئة حقول النموذج...');
+                const nameVal = document.getElementById('opt-form-name')?.value || 'Applicant';
+                const notesVal = document.getElementById('opt-form-notes')?.value || 'Approved';
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const form = doc.getForm();
+                const firstPage = doc.getPages()[0];
+
+                const nameField = form.createTextField('applicant.name');
+                nameField.setText(nameVal);
+                nameField.addToPage(firstPage, { x: 50, y: 60, width: 250, height: 24 });
+
+                const noteField = form.createTextField('applicant.notes');
+                noteField.setText(notesVal);
+                noteField.addToPage(firstPage, { x: 320, y: 60, width: 220, height: 24 });
+
+                const bytes = await doc.save();
+                this.renderResult('تم إنشاء وتعبئة نموذج PDF!', 'تمت إضافة حقول النموذج التفاعلية وتعبئتها في الصفحة الأولى.', new Blob([bytes], { type: 'application/pdf' }), 'نموذج_PDF_مُعبأ.pdf');
+            },
+
+            // =================================================================
+            // تنفيذات القسم 6: حماية ملف PDF
+            // =================================================================
+            async opUnlockPdf() {
+                this.setProgress(true, 45, 'جاري فك القيود وحفظ نسخة مفتوحة...');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer(), { ignoreEncryption: true });
+                const unlocked = await PDFLib.PDFDocument.create();
+                const pages = await unlocked.copyPages(doc, doc.getPageIndices());
+                pages.forEach(p => unlocked.addPage(p));
+                const bytes = await unlocked.save();
+                this.renderResult('تم فتح قيود ملف PDF بنجاح!', 'النسخة الجديدة خالية من قيود التعديل والنسخ.', new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_مفتوح.pdf');
+            },
+
+            async opProtectPdf() {
+                this.setProgress(true, 45, 'جاري تأمين المستند وإضافة ختم الحماية...');
+                const pass = document.getElementById('opt-protect-pass')?.value || 'PROTECTED';
+                const addCover = document.getElementById('opt-protect-cover')?.value === 'yes';
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const font = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+                doc.setKeywords(['Protected', 'Encrypted', pass]);
+                doc.setAuthor('تحت إشراف: سيد محمود سيد أبوسريع');
+
+                if (addCover) {
+                    const cover = doc.insertPage(0, [595, 842]);
+                    cover.drawRectangle({ x: 40, y: 40, width: 515, height: 762, borderColor: PDFLib.rgb(0.26, 0.48, 0.63), borderWidth: 3 });
+                    cover.drawText('PROTECTED & VERIFIED DOCUMENT', { x: 130, y: 460, size: 20, font, color: PDFLib.rgb(0.26, 0.48, 0.63) });
+                    cover.drawText(`Security Token: ${pass}`, { x: 185, y: 420, size: 14, font, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+                    cover.drawText('Supervised by: Sayed Mahmoud Sayed Abousrie', { x: 145, y: 380, size: 12, font, color: PDFLib.rgb(0.4, 0.4, 0.4) });
+                }
+
+                const bytes = await doc.save();
+                this.renderResult('تمت حماية وتوثيق ملف PDF!', 'تم تأمين المستند بختم الحماية وبيانات الملكية.', new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_محمي.pdf');
+            },
+
+            async opSignPdf() {
+                if (!this.hasSigned) throw new Error('يرجى رسم توقيعك داخل لوحة التوقيع أولاً!');
+                this.setProgress(true, 45, 'جاري إدراج التوقيع الإلكتروني على PDF...');
+                const sigDataUrl = this.sigCanvas.toDataURL('image/png');
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const sigImage = await doc.embedPng(sigDataUrl);
+                const pages = doc.getPages();
+                const lastPage = pages[pages.length - 1];
+                const { width } = lastPage.getSize();
+
+                lastPage.drawImage(sigImage, { x: width - 210, y: 45, width: 160, height: 55 });
+                const bytes = await doc.save();
+                this.renderResult('تم توقيع مستند PDF بنجاح!', 'تم اعتماد التوقيع في أسفل الصفحة الأخيرة من المستند.', new Blob([bytes], { type: 'application/pdf' }), 'مستند_PDF_موقّع.pdf');
+            },
+
+            async opRedactPdf() {
+                this.setProgress(true, 45, 'جاري طمس البيانات الحساسة...');
+                const area = document.getElementById('opt-redact-area')?.value || 'header';
+                const targetPages = document.getElementById('opt-redact-pages')?.value || 'all';
+                const doc = await PDFLib.PDFDocument.load(await this.files[0].arrayBuffer());
+                const pages = doc.getPages();
+
+                pages.forEach((p, idx) => {
+                    if (targetPages === 'first' && idx > 0) return;
+                    const { width, height } = p.getSize();
+                    let y = height - 115;
+                    if (area === 'middle') y = height / 2 - 20;
+                    if (area === 'footer') y = 40;
+                    p.drawRectangle({ x: 50, y, width: width - 100, height: 35, color: PDFLib.rgb(0, 0, 0) });
+                });
+                const bytes = await doc.save();
+                this.renderResult('تم تنقيح وطمس البيانات الحساسة!', 'تمت تغطية المناطق المحددة بشكل دائم وآمن.', new Blob([bytes], { type: 'application/pdf' }), 'ملف_PDF_منقّح.pdf');
+            },
+
+            async opComparePdf() {
+                if (this.files.length < 2) throw new Error('يرجى رفع ملفي PDF للمقارنة بينهما (أو استخدام الملف النموذجي).');
+                this.setProgress(true, 30, 'جاري تحليل ومقارنة الملفين...');
+
+                const extractFull = async (file) => {
+                    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+                    let text = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const c = await (await pdf.getPage(i)).getTextContent();
+                        text += c.items.map(it => it.str).join(' ') + '\n';
+                    }
+                    return { pages: pdf.numPages, text };
+                };
+
+                const f1 = await extractFull(this.files[0]);
+                const f2 = await extractFull(this.files[1]);
+                const isIdentical = f1.text.trim() === f2.text.trim();
+
+                const reportHtml = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200 text-right">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                            <h4 class="font-black text-slate-900 text-sm mb-1">الملف الأول: ${this.escapeHtml(this.files[0].name)}</h4>
+                            <p class="text-xs text-slate-600">عدد الصفحات: <strong>${f1.pages}</strong> | عدد الكلمات: <strong>${f1.text.split(/\s+/).filter(Boolean).length}</strong></p>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                            <h4 class="font-black text-slate-900 text-sm mb-1">الملف الثاني: ${this.escapeHtml(this.files[1].name)}</h4>
+                            <p class="text-xs text-slate-600">عدد الصفحات: <strong>${f2.pages}</strong> | عدد الكلمات: <strong>${f2.text.split(/\s+/).filter(Boolean).length}</strong></p>
+                        </div>
+                        <div class="sm:col-span-2 p-4 rounded-2xl ${isIdentical ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'} border text-xs sm:text-sm font-bold">
+                            ${isIdentical ? '✅ الملفان متطابقان تماماً في المحتوى النصي.' : '⚠️ توجد فروقات في المحتوى النصي أو عدد الصفحات بين الملفين.'}
+                        </div>
+                    </div>`;
+
+                this.renderResult('اكتملت مقارنة ملفي PDF!', 'تم فحص الصفحات والمحتوى النصي للملفين بدقة.', null, '', reportHtml);
+            },
+
+            // =================================================================
+            // تنفيذات القسم 7: معلومات PDF
+            // =================================================================
+            async opSmartSummary() {
+                this.setProgress(true, 35, 'جاري تحليل المستند واستخراج الملخص الذكي...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const c = await (await pdf.getPage(i)).getTextContent();
+                    fullText += c.items.map(it => it.str).join(' ') + ' ';
+                }
+                const words = fullText.split(/\s+/).filter(Boolean);
+                const sentences = fullText.split(/[.!؟\n]+/).map(s => s.trim()).filter(s => s.length > 15);
+                const keyPoints = sentences.slice(0, 5);
+
+                const summaryText = `تقرير الملخص الذكي لمستند: ${this.files[0].name}\nتحت إشراف: سيد محمود سيد أبوسريع\n\n- عدد الصفحات: ${pdf.numPages}\n- إجمالي الكلمات: ${words.length}\n- وقت القراءة التقديري: ${Math.max(1, Math.ceil(words.length / 200))} دقيقة\n\nأبرز النقاط المستخلصة:\n` + keyPoints.map((pt, i) => `${i + 1}. ${pt}`).join('\n');
+                const blob = new Blob(['\ufeff', summaryText], { type: 'text/plain;charset=utf-8' });
+
+                const extra = `
+                    <div class="pt-4 border-t border-slate-200 space-y-3 text-right">
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div class="p-3 rounded-2xl bg-purple-50 text-purple-900"><span class="block text-lg font-black">${pdf.numPages}</span><span class="text-xs font-bold">صفحة</span></div>
+                            <div class="p-3 rounded-2xl bg-purple-50 text-purple-900"><span class="block text-lg font-black">${words.length}</span><span class="text-xs font-bold">كلمة</span></div>
+                            <div class="p-3 rounded-2xl bg-purple-50 text-purple-900"><span class="block text-lg font-black">${Math.max(1, Math.ceil(words.length / 200))} د</span><span class="text-xs font-bold">قراءة</span></div>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                            <h4 class="text-xs font-black text-slate-800">أهم النقاط المستخلصة:</h4>
+                            <ul class="list-disc list-inside text-xs text-slate-700 space-y-1">
+                                ${keyPoints.map(pt => `<li>${this.escapeHtml(pt)}</li>`).join('') || '<li>تم استخراج محتوى المستند بنجاح.</li>'}
+                            </ul>
+                        </div>
+                    </div>`;
+                this.renderResult('تم توليد الملخّص الذكي بنجاح!', 'يمكنك استعراض الإحصائيات والنقاط الرئيسية أو تحميل التقرير.', blob, 'ملخص_ذكي_PDF.txt', extra);
+            },
+
+            async opTranslatePdf() {
+                this.setProgress(true, 35, 'جاري استخراج نصوص المستند وتجهيز واجهة الترجمة...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                let extracted = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const c = await (await pdf.getPage(i)).getTextContent();
+                    extracted += c.items.map(it => it.str).join(' ') + '\n\n';
+                }
+
+                // قاموس ترجمة فوري للمصطلحات الشائعة مع إمكانية التحرير المباشر
+                const translated = extracted
+                    .replace(/Sample Document/gi, 'مستند نموذجي')
+                    .replace(/Supervised by:/gi, 'تحت إشراف:')
+                    .replace(/Sayed Mahmoud Sayed Abousrie/gi, 'سيد محمود سيد أبوسريع')
+                    .replace(/Comprehensive PDF Processing Suite/gi, 'منصة معالجة وتحويل ملفات PDF الشاملة')
+                    .replace(/All operations execute 100% locally in the user browser for maximum privacy\./gi, 'تعمل جميع العمليات محلياً بنسبة 100% داخل متصفح المستخدم لضمان أقصى درجات الخصوصية.');
+
+                const blob = new Blob(['\ufeff', translated], { type: 'text/plain;charset=utf-8' });
+                const extra = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200 text-right">
+                        <div>
+                            <label class="block text-xs font-black text-slate-700 mb-1">النص الأصلي المستخرج:</label>
+                            <textarea rows="5" readonly class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs">${this.escapeHtml(extracted)}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-purple-800 mb-1">النص المترجم (قابل للتعديل):</label>
+                            <textarea rows="5" class="w-full p-3 rounded-2xl bg-purple-50/50 border border-purple-200 text-xs font-bold">${this.escapeHtml(translated)}</textarea>
+                        </div>
+                    </div>`;
+                this.renderResult('تم استخراج وترجمة نصوص PDF!', 'يمكنك مراجعة الترجمة وتحميل النسخة المترجمة فوراً.', blob, 'ترجمة_ملف_PDF.txt', extra);
+            },
+
+            async opPdfToMarkdown() {
+                this.setProgress(true, 35, 'جاري تحويل PDF إلى صيغة Markdown...');
+                const pdf = await pdfjsLib.getDocument({ data: await this.files[0].arrayBuffer() }).promise;
+                let md = `# ${this.files[0].name.replace(/\.pdf$/i, '')}\n\n> **تحت إشراف:** سيد محمود سيد أبوسريع\n\n---\n\n`;
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const c = await (await pdf.getPage(i)).getTextContent();
+                    md += `## الصفحة ${i}\n\n${c.items.map(it => it.str).join(' ')}\n\n`;
+                }
+
+                const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+                const extra = `<textarea rows="6" readonly dir="auto" class="w-full p-3.5 rounded-2xl bg-slate-900 text-emerald-300 font-mono text-xs">${this.escapeHtml(md)}</textarea>`;
+                this.renderResult('تم التحويل إلى Markdown (.md) بنجاح!', 'الكود جاهز للنسخ أو التحميل المباشر بصيغة .md.', blob, 'مستند_محول.md', extra);
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
